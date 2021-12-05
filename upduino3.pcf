@@ -15,6 +15,10 @@ set_io -nowarn clk        20
 #RESET SIGNAL
 set_io -nowarn UP_DWN   23  
 
+#LAP SIGNAL
+set_io -nowarn LAP 35
+set_io -nowarn VIEW_LAPS 32
+
 #START/STOP SIGNAL
 set_io -nowarn START_STOP   25 
 

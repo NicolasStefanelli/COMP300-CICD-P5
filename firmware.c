@@ -44,7 +44,7 @@ uint32_t set_irq_mask(uint32_t mask); asm (
 );
 
 // Here is a function if you don't have "/" and "%"
-uint32_t convert(uint32_t num)
+uint32_t convert(uint32_t num,uint32_t laps)
 {
     unsigned char min_ten = 0;
     unsigned char min_one = 0;
@@ -66,7 +66,7 @@ uint32_t convert(uint32_t num)
         num = num - 10;
     }
     sec_one = num;
-    return (min_ten << 12) | (min_one << 8) | (sec_ten << 4) | sec_one;
+    return (laps << 16)| (min_ten << 12) | (min_one << 8) | (sec_ten << 4) | sec_one;
 }
 
 void main() {
@@ -80,6 +80,7 @@ void main() {
     // switch to dual IO mode
     reg_spictrl = (reg_spictrl & ~0x007F0000) | 0x00400000;
 
+    uint32_t laps_array[15] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
     uint32_t led_timer = 0;
     uint32_t second_timer = 0;
     uint32_t ms_timer = 0;
@@ -95,10 +96,13 @@ void main() {
     uint32_t min_ones = 0;
     uint32_t sec_tens = 0;
     uint32_t sec_ones = 0;
+    uint32_t laps = 0;
+    uint32_t displayed_lap = 0;
     bool dec = 1;
     
     bool incrementing = false;
     bool started = false;
+    bool lap_counted = false;
     while (1) {
 
       // read values from hardware
@@ -112,18 +116,34 @@ void main() {
       second_toggle = new_second_toggle;
       
       // Read UP_DOWN 
-     if(reg_gpio&0b11)
+     
+     if(reg_gpio&0b10000){
+        if(displayed_lap >= 16){
+            displayed_lap = displayed_lap - 16;
+        }
+        reg_gpio = laps_array[displayed_lap];
+        displayed_lap++; 
+     }
+     else
+     {
+     if(reg_gpio&0b100)
     {
         started = true;
-        if(reg_gpio&0b10) //Plugged in
-        {
-            second_timer = 0;
-            incrementing = false;
+        second_timer++;
+        incrementing = true;
+        if (reg_gpio&0b1000 && lap_counted == false) 
+        { // Save the value of lap / Assign value to DBG LED
+            // reg_gpio & 0b1111 
+            laps++;
+            if(laps >= 16)
+            {
+                laps = laps - 16;
+            }
+            laps_array[laps] = convert(second_timer,laps);
+            lap_counted = true;
         }
-        else //Unplugged
-        {
-            second_timer++;
-            incrementing = true;
+        else if(!(reg_gpio&0b1000)){
+            lap_counted = false;
         }
     }
     else
@@ -131,25 +151,37 @@ void main() {
         started = false;
         incrementing = false;
     }
+
+    if(reg_gpio&0b10) //check reset value
+        {
+            second_timer = 0;
+            incrementing = false;
+            laps = 0;
+            //uint32_t blank_array[15];
+            //laps_array = blank_array;
+            for (int i = 0; i < 15; i++)
+                laps_array[i] = (uint32_t)0;
+        }
+
       if(second_timer > 3599 & !incrementing)
           second_timer = 3599;
       else if(second_timer > 3599 & incrementing)
           second_timer = 0;
 
     // Following code works when "/" and "%" implemented
-       minutes = ((second_timer / 60) % 60);
-       min_tens = minutes / 10;
-       min_ones = minutes % 10;
+       //minutes = ((second_timer / 60) % 60);
+       //min_tens = minutes / 10;
+       //min_ones = minutes % 10;
 
-       sec_tens = (second_timer % 60) / 10;
-       sec_ones = (second_timer % 60) % 10;
-       reg_gpio = (min_tens << 12) | (min_ones << 8) | (sec_tens << 4) | sec_ones;
+       //sec_tens = (second_timer % 60) / 10;
+       //sec_ones = (second_timer % 60) % 10;
+       //reg_gpio = (laps << 16)| (min_tens << 12) | (min_ones << 8) | (sec_tens << 4) | sec_ones; // add debug LEDs
 
     // End of "/" and "%" code
     
     // Code to use a function if "/" and "%" not implemented
-    // uint32_t con = convert(second_timer);
-    // reg_gpio = con; // debug LEDs in 4 LSBs
-       
+     uint32_t con = convert(second_timer,laps);
+     reg_gpio = con; // debug LEDs in 4 LSBs
+     }
   } // end of while(1)
 } // end of main program

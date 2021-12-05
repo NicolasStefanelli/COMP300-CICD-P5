@@ -43,6 +43,8 @@ module top (
 
     input UP_DWN,
     input START_STOP,
+    input LAP,
+    input VIEW_LAPS,
 
     output DEC,
     output COLHI,
@@ -115,11 +117,11 @@ module top (
 
 
     reg [31:0] gpio_out;
-    wire [31:0] gpio_in = ((second_toggle &1'b1) << 0)|((UP_DWN & 1'b1)<<1) | ((START_STOP & 1'b1)<<2);
+    wire [31:0] gpio_in = ((second_toggle &1'b1) << 0)|((UP_DWN & 1'b1)<<1) | ((START_STOP & 1'b1)<<2)| ((LAP & 1'b1)<<3) | ((VIEW_LAPS & 1'b1)<<4);
     wire second_toggle;
 
 // Tie low order GPIO outputs to debug LEDs 
-    assign DBG = gpio_out[3:0];
+    assign DBG = gpio_out[19:16];
 
     assign COLHI = second_toggle;
     assign COLLO = 0;
@@ -158,7 +160,7 @@ module top (
 
     picosoc #(
         .BARREL_SHIFTER(0), // reduces device utilization
-		.ENABLE_MULDIV(1), // Multiplication Enabled
+		.ENABLE_MULDIV(0), // Multiplication Enabled
         .MEM_WORDS(2048)  // use 2KBytes of block RAM by default
     ) soc (
         .clk          (clk         ),
